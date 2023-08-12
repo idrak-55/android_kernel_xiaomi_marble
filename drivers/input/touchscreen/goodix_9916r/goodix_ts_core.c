@@ -45,10 +45,6 @@
 #ifdef CONFIG_TOUCH_BOOST
 extern void touch_irq_boost(void);
 #endif
-#ifdef CONFIG_TOUCH_BOOST
-#define EVENT_INPUT 0x1
-extern void lpm_disable_for_dev(bool on, char event_dev);
-#endif
 extern struct device *global_spi_parent_device;
 struct goodix_module goodix_modules;
 int core_module_prob_sate = CORE_MODULE_UNPROBED;
@@ -1417,9 +1413,15 @@ finger_pos:
 					touch_data->overlay);
 	input_report_abs(dev, ABS_MT_WIDTH_MINOR,
 					touch_data->overlay);
+#ifdef GOODIX_XIAOMI_TOUCHFEATURE
+			last_touch_events_collect(i, 1);
+#endif
 		} else {
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, false);
+#ifdef GOODIX_XIAOMI_TOUCHFEATURE
+			last_touch_events_collect(i, 0);
+#endif
 		}
 	}
 
@@ -1505,9 +1507,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		}
 	}
 #endif
-#ifdef CONFIG_TOUCH_BOOST
-	lpm_disable_for_dev(true, EVENT_INPUT);
-#endif
 	/* inform external module */
 	mutex_lock(&goodix_modules.mutex);
 	list_for_each_entry_safe(ext_module, next,
@@ -1517,9 +1516,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		ret = ext_module->funcs->irq_event(core_data, ext_module);
 		if (ret == EVT_CANCEL_IRQEVT) {
 			mutex_unlock(&goodix_modules.mutex);
-#ifdef CONFIG_TOUCH_BOOST
-			lpm_disable_for_dev(false, EVENT_INPUT);
-#endif
 			pm_relax(core_data->bus->dev);
 			return IRQ_HANDLED;
 		}
@@ -1546,9 +1542,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	if (!core_data->tools_ctrl_sync && !ts_event->retry)
 		hw_ops->after_event_handler(core_data);
 	ts_event->retry = 0;
-#ifdef CONFIG_TOUCH_BOOST
-	lpm_disable_for_dev(false, EVENT_INPUT);
-#endif
 	pm_relax(core_data->bus->dev);
 
 	return IRQ_HANDLED;
@@ -2054,6 +2047,9 @@ static void goodix_ts_release_connects(struct goodix_ts_core *core_data)
 		input_mt_report_slot_state(input_dev,
 				MT_TOOL_FINGER,
 				false);
+#ifdef GOODIX_XIAOMI_TOUCHFEATURE
+			last_touch_events_collect(i, 0);
+#endif
 	}
 	input_report_key(input_dev, BTN_TOUCH, 0);
 	input_mt_sync_frame(input_dev);
@@ -2138,9 +2134,6 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 	mutex_unlock(&goodix_modules.mutex);
 
 out:
-#ifdef CONFIG_TOUCH_BOOST
-	lpm_disable_for_dev(false, EVENT_INPUT);
-#endif
 	goodix_ts_release_connects(core_data);
 	ts_info("Suspend end");
 	return 0;
