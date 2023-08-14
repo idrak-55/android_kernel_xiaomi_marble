@@ -1,0 +1,24 @@
+name: Kernel Marble
+run-name: Kernel Marble
+
+on:
+  push:
+    branches: [ melt ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: nexgang/ubuntu:latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Kernel Marble
+        run: bash build.sh null marble null
+        env:
+           token: ${{ secrets.TOKEN }}
+           chat_id: ${{ secrets.CHAT_ID }}
+           host: ${{ secrets.TOKEN }}
+           build_user: ${{ secrets.CHAT_ID }}
